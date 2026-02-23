@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Support Ticket System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+body{
+  background:#f4f6f9;
+}
+
+.navbar{
+  background:#343a40;
+}
+
+.ticket-card{
+  border-left:5px solid #0d6efd;
+}
+
+.status-open{ color:#dc3545; font-weight:bold; }
+.status-progress{ color:#ffc107; font-weight:bold; }
+.status-resolved{ color:#198754; font-weight:bold; }
+
+.section-title{
+  background:#ffffff;
+  padding:10px;
+  border-radius:8px;
+  margin-bottom:15px;
+}
+</style>
+</head>
+
+<body>
+
+<nav class="navbar navbar-dark">
+  <div class="container-fluid">
+    <span class="navbar-brand mb-0 h1">Support Ticket System</span>
+  </div>
+</nav>
+
+<div class="container mt-4">
+
+  <div class="row">
+
+    <!-- USER PANEL -->
+    <div class="col-md-5">
+      <div class="section-title">
+        <h4>Raise New Ticket</h4>
+      </div>
+
+      <form id="ticketForm">
+        <input type="text" id="username" class="form-control mb-2" placeholder="Your Name" required>
+        <input type="email" id="email" class="form-control mb-2" placeholder="Email" required>
+        <input type="text" id="subject" class="form-control mb-2" placeholder="Subject" required>
+        <textarea id="message" class="form-control mb-2" placeholder="Describe your issue" required></textarea>
+        <button class="btn btn-primary w-100">Submit Ticket</button>
+      </form>
+
+      <hr>
+
+      <h5>Track Ticket</h5>
+      <input type="number" id="trackId" class="form-control mb-2" placeholder="Enter Ticket ID">
+      <button onclick="trackTicket()" class="btn btn-dark w-100">Track Status</button>
+      <div id="trackResult" class="mt-3"></div>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div class="col-md-7">
+      <div class="section-title">
+        <h4>Admin Panel</h4>
+      </div>
+
+      <div id="ticketList"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+class Ticket {
+  constructor(id, username, email, subject, message) {
+    this.id = id;
+    this.username = username;
+    this.email = email;
+    this.subject = subject;
+    this.message = message;
+    this.status = "Open";
+    this.response = "";
+  }
+}
+
+let tickets = JSON.parse(localStorage.getItem("tickets")) || [];
+
+const ticketForm = document.getElementById("ticketForm");
+const ticketList = document.getElementById("ticketList");
+
+ticketForm.addEventListener("submit", function(e){
+  e.preventDefault();
+
+  const newTicket = new Ticket(
+    Date.now(),
+    username.value,
+    email.value,
+    subject.value,
+    message.value
+  );
+
+  tickets.push(newTicket);
+  localStorage.setItem("tickets", JSON.stringify(tickets));
+
+  alert("Ticket Submitted! Your Ticket ID: " + newTicket.id);
+
+  ticketForm.reset();
+  displayTickets();
+});
+
+function displayTickets(){
+  ticketList.innerHTML = "";
+
+  tickets.forEach(ticket => {
+
+    let statusClass = "";
+    if(ticket.status === "Open") statusClass = "text-danger fw-bold";
+    else if(ticket.status === "In Progress") statusClass = "text-warning fw-bold";
+    else statusClass = "text-success fw-bold";
+
+    ticketList.innerHTML += `
+      <div class="card mb-3 p-3 shadow-sm">
+        <h5>#${ticket.id} - ${ticket.subject}</h5>
+        <p><b>User:</b> ${ticket.username} (${ticket.email})</p>
+        <p>${ticket.message}</p>
+
+        <p>Status: <span class="${statusClass}">${ticket.status}</span></p>
+        <p><b>Response:</b> ${ticket.response || "No response yet"}</p>
+
+        <textarea id="response-${ticket.id}" 
+          class="form-control mb-2"
+          placeholder="Write response...">${ticket.response}</textarea>
+
+        <button class="btn btn-primary btn-sm mb-2"
+          onclick="updateResponse(${ticket.id})">
+          Update Response
+        </button>
+
+        <select class="form-select mb-2"
+          onchange="changeStatus(${ticket.id}, this.value)">
+          <option value="Open" ${ticket.status=="Open"?"selected":""}>Open</option>
+          <option value="In Progress" ${ticket.status=="In Progress"?"selected":""}>In Progress</option>
+          <option value="Resolved" ${ticket.status=="Resolved"?"selected":""}>Resolved</option>
+        </select>
+
+        <button class="btn btn-danger btn-sm"
+          onclick="deleteTicket(${ticket.id})">
+          Delete Ticket
+        </button>
+      </div>
+    `;
+  });
+}
+
+function updateResponse(id){
+  const textarea = document.getElementById(`response-${id}`);
+  const ticket = tickets.find(t => t.id === id);
+
+  ticket.response = textarea.value;
+  localStorage.setItem("tickets", JSON.stringify(tickets));
+
+  alert("Response Updated Successfully!");
+  displayTickets();
+}
+
+function changeStatus(id, status){
+  const ticket = tickets.find(t => t.id === id);
+  ticket.status = status;
+  localStorage.setItem("tickets", JSON.stringify(tickets));
+  displayTickets();
+}
+
+function deleteTicket(id){
+  tickets = tickets.filter(t => t.id !== id);
+  localStorage.setItem("tickets", JSON.stringify(tickets));
+  displayTickets();
+}
+
+function trackTicket(){
+  const id = parseInt(document.getElementById("trackId").value);
+  const resultDiv = document.getElementById("trackResult");
+
+  const ticket = tickets.find(t => t.id === id);
+
+  if(ticket){
+    resultDiv.innerHTML = `
+      <div class="alert alert-info">
+        <p><b>Subject:</b> ${ticket.subject}</p>
+        <p><b>Status:</b> ${ticket.status}</p>
+        <p><b>Response:</b> ${ticket.response || "No response yet"}</p>
+      </div>
+    `;
+  } else {
+    resultDiv.innerHTML = `
+      <div class="alert alert-danger">
+        Ticket not found.
+      </div>
+    `;
+  }
+}
+
+displayTickets();
+</script>
+</body>
+</html>
